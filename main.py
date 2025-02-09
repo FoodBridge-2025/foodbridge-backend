@@ -1,16 +1,38 @@
 from datetime import datetime, time
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+from schemas import UserLogin
 import models
 import crud, schemas
-from fastapi import Depends, HTTPException
-from sqlalchemy.orm import Session
 import uuid
 from models import FoodItem, Requirement, User
 from schemas import FoodItemCreate, FoodItemResponse
 from database import get_db
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import get_db
+from schemas import CommunityCentreLogin
+from models import CommunityCentre
+from passlib.context import CryptContext
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all domains
+    allow_credentials=True,
+    allow_methods=["*"],   # Allow all HTTP methods
+    allow_headers=["*"],   # Allow all headers
+)
+
+def hash_password(password: str) -> str:
+    """Hashes a plain text password before storing it."""
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies a password against its hashed version."""
+    return pwd_context.verify(plain_password, hashed_password)
 
 # ✅ Endpoint to add a new community center
 @app.post("/community-centres/", response_model=schemas.CommunityCentreResponse)
@@ -30,6 +52,24 @@ def get_community_centre(centre_id: str, db: Session = Depends(get_db)):
     if not centre:
         raise HTTPException(status_code=404, detail="Community centre not found")
     return centre
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+@app.post("/community-centres/login")
+def login_community_centre(login_data: CommunityCentreLogin, db: Session = Depends(get_db)):
+    """Logs in a community centre by verifying email and password."""
+
+    centre = db.query(CommunityCentre).filter(CommunityCentre.email == login_data.email).first()
+
+    if not centre:
+        raise HTTPException(status_code=404, detail="Community centre not found")
+
+    # Verify password
+    if not pwd_context.verify(login_data.password, centre.password):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+
+    return {"message": "Login successful", "community_centre_id": centre.id}
+
 
 # End User Endpoints
 
@@ -173,6 +213,30 @@ def get_token_count(user_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     return user.token_count
+
+@app.put("/users/{user_id}/token_count", response_model=schemas.UserResponse)
+def update_token_count(user_id: uuid.UUID, token_count: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == str(user_id)).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.token_count = token_count
+    db.commit()
+    db.refresh(user)
+    return user
+
+@app.post("/users/login")
+def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == user_data.email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not verify_password(user_data.password, user.password):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+
+    return {"message": "Login successful", "user_id": str(user.id)}
 
 
 
