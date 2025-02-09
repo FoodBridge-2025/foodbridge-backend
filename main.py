@@ -68,7 +68,7 @@ def login_community_centre(login_data: CommunityCentreLogin, db: Session = Depen
     if not pwd_context.verify(login_data.password, centre.password):
         raise HTTPException(status_code=400, detail="Incorrect password")
 
-    return {"message": "Login successful", "community_centre_id": centre.id}
+    return {"message": "Login successful", "community_centre_id": schemas.CommunityCentreResponse.model_validate(centre)}
 
 
 # End User Endpoints
@@ -116,7 +116,7 @@ def get_meal_type():
     """Determine the meal type based on the current time, extending dinner until 6 AM."""
     now = datetime.now().time()
 
-    if time(6, 0) <= now < time(11, 0):
+    if time(0, 0) <= now < time(11, 0):
         return "breakfast"
     elif time(11, 0) <= now < time(16, 0):
         return "lunch"
@@ -236,7 +236,7 @@ def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
     if not verify_password(user_data.password, user.password):
         raise HTTPException(status_code=400, detail="Incorrect password")
 
-    return {"message": "Login successful", "user_id": str(user.id)}
+    return {"message": "Login successful", "user_id": schemas.UserResponse.model_validate(user)}
 
 
 

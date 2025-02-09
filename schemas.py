@@ -20,7 +20,10 @@ class CommunityCentreResponse(BaseModel):
     latitude: float
     longitude: float
     contact: str
-    email: EmailStr  # Expose email but not password
+    email: EmailStr
+
+    class Config:
+        from_attributes = True
 
 class UserBase(BaseModel):
     name: str
@@ -43,7 +46,8 @@ class UserResponse(BaseModel):
     email: EmailStr
 
     class Config:
-        orm_mode = True # Ensures conversion from SQLAlchemy model
+        orm_mode = True
+        from_attributes = True # Ensures conversion from SQLAlchemy model
 
 
 
@@ -95,6 +99,8 @@ class UserResponse(BaseModel):
     contact: str
     email: str
     token_count: int
+    class Config:
+        from_attributes = True
 
 class FoodItemResponseWithUser(BaseModel):
     id: str
